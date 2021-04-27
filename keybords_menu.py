@@ -9,6 +9,8 @@ main_keyboard = types.InlineKeyboardMarkup()
 main_keyboard.add(types.InlineKeyboardButton(text='Готовый сет', callback_data='r_set'))
 main_keyboard.add(types.InlineKeyboardButton(text='Быстрый сет', callback_data='f_set'))
 main_keyboard.add(types.InlineKeyboardButton(text='Свой сет', callback_data='m_set'))
+main_keyboard.add(ready)
+main_keyboard.add(types.InlineKeyboardButton(text='Отменить заказ', callback_data='main_cancel'))
 
 # клавиатура наборов
 r_set_keyboard = types.InlineKeyboardMarkup()
@@ -40,4 +42,3 @@ m_set_keyboard.add(cancel1)
 order_keyboard = types.InlineKeyboardMarkup()
 order_keyboard.add(types.InlineKeyboardButton(text='Заказать', callback_data='order'))
 order_keyboard.add(cancel2)
-

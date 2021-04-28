@@ -137,20 +137,27 @@ def callback_worker(call):
         print()
         is_running = False
     elif call.data == "Готово":
-        bot.send_message(call.message.chat.id, "Ваш заказ передан администратору")
-        db.commit()
-        bot.send_message(OWNER_ID, "Кто-то сделал заказ!")
-        cursor.execute(f"SELECT customer FROM orders WHERE id = ?;", (order_id,))
-        res = cursor.fetchone()
-        text = "*Заказчик: *" + str(res[0])
-        for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = ?;""", (order_id,)):
-            text += "\n" + "*• *" + str(value[1]) + ", " + str(value[2]) + " шт."
-        bot.send_message(OWNER_ID, text, parse_mode="Markdown")
-        print("main_order")
-        for value in cursor.execute("SELECT * FROM orders;"):
-            print(value)
-        print()
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        cursor.execute(f"""SELECT 1 FROM products_in_order WHERE order_id = ?;""", (order_id,))
+        result = cursor.fetchone()
+        print(result)
+        if result != None:
+            bot.send_message(call.message.chat.id, "Ваш заказ передан администратору")
+            db.commit()
+            bot.send_message(OWNER_ID, "Кто-то сделал заказ!")
+            cursor.execute(f"SELECT customer FROM orders WHERE id = ?;", (order_id,))
+            res = cursor.fetchone()
+            text = "*Заказчик: *" + str(res[0])
+            for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = ?;""", (order_id,)):
+                text += "\n" + "*• *" + str(value[1]) + ", " + str(value[2]) + " шт."
+            bot.send_message(OWNER_ID, text, parse_mode="Markdown")
+            print("main_order")
+            for value in cursor.execute("SELECT * FROM orders;"):
+                print(value)
+            print()
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        else:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            bot.send_message(call.message.chat.id, "Вы не выбрали ни одного продукта. Заказ отменён")
         is_running = False
     elif call.data == "order":
         msg = bot.send_message(call.message.chat.id, "Сколько шт. вы хотите?")
@@ -175,10 +182,10 @@ def ask_count(message):
             else:
                 cursor.execute(f"SELECT id FROM orders WHERE customer = ?;", (message.from_user.first_name,))
                 res = cursor.fetchone()
-                data = (str(res[0]), str(main_data), str(message.text))
-                print("data")
+                res1 = "+" + str(main_data)
+                data = (str(res[0]), res1, str(message.text))
+                print(data)
                 cursor.execute("INSERT INTO products_in_order VALUES (?, ?, ?);", data)
-                print('1234')
                 for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = 
                                 (SELECT id FROM orders WHERE customer = ?);""", (message.from_user.first_name,)):
                     print(value)
@@ -193,11 +200,13 @@ def ask_count(message):
                 data = (str(res[0]), str(main_data), str(message.text))
                 print(data)
                 cursor.execute("INSERT INTO products_in_order VALUES (?, ?, ?);", data)
-                print('1234')
                 for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = 
                                 (SELECT id FROM orders WHERE customer = ?);""", (message.from_user.first_name,)):
                     print(value)
                 print()
+                cursor.execute(f"""UPDATE products SET count_p = 
+                                (SELECT count_p FROM products WHERE product_name = ?) - ?
+                                WHERE product_name = ?""", (main_data, message.text, main_data))
                 rec(message)
             else:
                 text = "У нас нет столько :с" + "\n" + "Введите число в пределах количества"

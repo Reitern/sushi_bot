@@ -7,6 +7,7 @@ from config import TOKEN, OWNER_ID
 is_running = running1 = False
 main_menu = ''
 main_data = ''
+main_number = ''
 order_id = 0
 
 bot = telebot.TeleBot(TOKEN)
@@ -99,7 +100,7 @@ def get_text_messages(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_worker(call):
-    global is_running, main_menu
+    global is_running, main_menu, main_number
 
     if call.data == "r_set":
         r_set(call.message.chat.id)
@@ -141,20 +142,9 @@ def callback_worker(call):
         result = cursor.fetchone()
         print(result)
         if result != None:
-            bot.send_message(call.message.chat.id, "Ваш заказ передан администратору")
-            db.commit()
-            bot.send_message(OWNER_ID, "Кто-то сделал заказ!")
-            cursor.execute(f"SELECT customer FROM orders WHERE id = ?;", (order_id,))
-            res = cursor.fetchone()
-            text = "*Заказчик: *" + str(res[0])
-            for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = ?;""", (order_id,)):
-                text += "\n" + "*• *" + str(value[1]) + ", " + str(value[2]) + " шт."
-            bot.send_message(OWNER_ID, text, parse_mode="Markdown")
-            print("main_order")
-            for value in cursor.execute("SELECT * FROM orders;"):
-                print(value)
-            print()
             bot.delete_message(call.message.chat.id, call.message.message_id)
+            msg = bot.send_message(call.message.chat.id, "Введите свой номер телефона")
+            bot.register_next_step_handler(msg, ask_number)
         else:
             bot.delete_message(call.message.chat.id, call.message.message_id)
             bot.send_message(call.message.chat.id, "Вы не выбрали ни одного продукта. Заказ отменён")
@@ -212,6 +202,31 @@ def ask_count(message):
                 text = "У нас нет столько :с" + "\n" + "Введите число в пределах количества"
                 msg = bot.send_message(message.chat.id, text)
                 bot.register_next_step_handler(msg, ask_count)
+
+
+def ask_number(message):
+    global main_number, order_id
+    if not message.text.isdigit():
+        msg = bot.send_message(message.chat.id, "Пожалуйста, введите число!")
+        bot.register_next_step_handler(msg, ask_number)
+    else:
+        main_number = message.text
+        bot.send_message(message.chat.id, "Ваш заказ передан администратору")
+        bot.send_message(message.chat.id, f"Когда заказ будет собран, по номеру {main_number} с вами "
+                                               f"свяжется курьер для уточнения места доставки")
+        db.commit()
+        bot.send_message(OWNER_ID, "Кто-то сделал заказ!")
+        cursor.execute(f"SELECT customer FROM orders WHERE id = ?;", (order_id,))
+        res = cursor.fetchone()
+        text = "*Заказчик: *" + str(res[0])
+        for value in cursor.execute(f"""SELECT * FROM products_in_order WHERE order_id = ?;""", (order_id,)):
+            text += "\n" + "*• *" + str(value[1]) + ", " + str(value[2]) + " шт."
+        text += "\n" + "*Номер телефона: *" + str(main_number)
+        bot.send_message(OWNER_ID, text, parse_mode="Markdown")
+        print("main_order")
+        for value in cursor.execute("SELECT * FROM orders;"):
+            print(value)
+        print()
 
 
 bot.polling(none_stop=True, interval=0)
